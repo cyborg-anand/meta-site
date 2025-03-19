@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Phone, MapPin, Send } from 'lucide-react';
+import { Mail, Phone, MapPin, Send, Check, AlertCircle } from 'lucide-react';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -10,10 +10,116 @@ const Contact = () => {
     message: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [status, setStatus] = useState({
+    submitting: false,
+    submitted: false,
+    success: false,
+    message: ''
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission logic here
-    console.log('Form submitted:', formData);
+    
+    // Set submitting state
+    setStatus({
+      submitting: true,
+      submitted: false,
+      success: false,
+      message: 'Sending your message...'
+    });
+    
+    try {
+      // Replace this URL with your deployed Cloudflare Worker URL
+      const workerUrl = 'https://mailworker.anandncs.workers.dev';
+      
+      const response = await fetch(workerUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      // Check if the response is valid JSON
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        const result = await response.json();
+        
+        if (result.success) {
+          // Success state
+          setStatus({
+            submitting: false,
+            submitted: true,
+            success: true,
+            message: 'Thank you! Your message has been sent successfully.We will get back to you soon'
+          });
+          
+          // Reset form after successful submission
+          setFormData({
+            name: '',
+            email: '',
+            subject: '',
+            message: ''
+          });
+          
+          // Clear success message after 5 seconds
+          setTimeout(() => {
+            setStatus(prev => ({
+              ...prev,
+              submitted: false,
+              message: ''
+            }));
+          }, 5000);
+        } else {
+          // Error state
+          setStatus({
+            submitting: false,
+            submitted: true,
+            success: false,
+            message: result.error || 'Something went wrong. Please try again later.'
+          });
+        }
+      } else {
+        // Handle non-JSON responses
+        const textResponse = await response.text();
+        
+        if (response.ok && textResponse.includes("Email sent")) {
+          // If the response contains success text but isn't JSON
+          setStatus({
+            submitting: false,
+            submitted: true,
+            success: true,
+            message: 'Thank you! Your message has been sent successfully.'
+          });
+          
+          // Reset form after successful submission
+          setFormData({
+            name: '',
+            email: '',
+            subject: '',
+            message: ''
+          });
+        } else {
+          // Some other non-JSON error response
+          console.error('Server response:', textResponse);
+          setStatus({
+            submitting: false,
+            submitted: true,
+            success: false,
+            message: 'Received unexpected response from server. Please try again later.'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setStatus({
+        submitting: false,
+        submitted: true,
+        success: false,
+        message: 'Failed to connect to our server. Please try again later.'
+      });
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -53,6 +159,19 @@ const Contact = () => {
               transition={{ duration: 0.5 }}
             >
               <h2 className="text-2xl font-bold mb-8">Send us a Message</h2>
+              
+              {/* Status message */}
+              {status.submitted && (
+                <div className={`p-4 mb-6 rounded-md ${status.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'} flex items-start gap-2`}>
+                  {status.success ? (
+                    <Check className="mt-0.5 flex-shrink-0" size={18} />
+                  ) : (
+                    <AlertCircle className="mt-0.5 flex-shrink-0" size={18} />
+                  )}
+                  <p>{status.message}</p>
+                </div>
+              )}
+              
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -66,6 +185,7 @@ const Contact = () => {
                     onChange={handleChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                     required
+                    disabled={status.submitting}
                   />
                 </div>
                 <div>
@@ -80,6 +200,7 @@ const Contact = () => {
                     onChange={handleChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                     required
+                    disabled={status.submitting}
                   />
                 </div>
                 <div>
@@ -94,6 +215,7 @@ const Contact = () => {
                     onChange={handleChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                     required
+                    disabled={status.submitting}
                   />
                 </div>
                 <div>
@@ -108,14 +230,32 @@ const Contact = () => {
                     rows={4}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                     required
+                    disabled={status.submitting}
                   ></textarea>
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors duration-200 flex items-center justify-center gap-2"
+                  className={`w-full px-6 py-3 rounded-md text-white flex items-center justify-center gap-2 transition-colors duration-200 ${
+                    status.submitting 
+                      ? 'bg-indigo-400 cursor-not-allowed' 
+                      : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
+                  disabled={status.submitting}
                 >
-                  Send Message
-                  <Send size={20} />
+                  {status.submitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      Send Message
+                      <Send size={20} />
+                    </>
+                  )}
                 </button>
               </form>
             </motion.div>
@@ -135,9 +275,9 @@ const Contact = () => {
                   <div>
                     <h3 className="font-semibold mb-1">Our Location</h3>
                     <p className="text-gray-600">
-                      123 Business Avenue<br />
-                      Suite 100<br />
-                      New York, NY 10001
+                    No.117 - 1st Floor, Mettupalayam Road,<br />
+                    Coimbatore - 641 047<br />
+                    Tamil Nadu, India
                     </p>
                   </div>
                 </div>
@@ -146,7 +286,7 @@ const Contact = () => {
                   <Phone className="text-indigo-600 mt-1" size={24} />
                   <div>
                     <h3 className="font-semibold mb-1">Phone Number</h3>
-                    <p className="text-gray-600">+1 (555) 123-4567</p>
+                    <p className="text-gray-600">+91 90034 14321</p>
                   </div>
                 </div>
 
@@ -154,7 +294,7 @@ const Contact = () => {
                   <Mail className="text-indigo-600 mt-1" size={24} />
                   <div>
                     <h3 className="font-semibold mb-1">Email Address</h3>
-                    <p className="text-gray-600">info@company.com</p>
+                    <p className="text-gray-600">hello@metazapp.com</p>
                   </div>
                 </div>
               </div>

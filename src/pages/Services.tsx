@@ -29,15 +29,16 @@ const Services = () => {
     },
     {
       icon: <Shield size={40} />,
-      title: 'Cybersecurity',
-      description: 'Protect your digital assets with our security solutions.',
-      features: ['Security Audits', 'Threat Protection', 'Data Encryption']
+      title: 'ERP Systems',
+      description: 'Streamline your business operations with enterprise resource planning.',
+      features: ['Accounting', 'Inventory', 'HR Management']
     },
+    
     {
       icon: <Smartphone size={40} />,
       title: 'Mobile Development',
       description: 'Native and cross-platform mobile applications.',
-      features: ['iOS Development', 'Android Development', 'React Native']
+      features: ['iOS Development', 'Android Development', 'React Native/Flutter']
     }
   ];
 
